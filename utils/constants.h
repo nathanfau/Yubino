@@ -1,0 +1,17 @@
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
+#define COMMAND_LIST_CREDENTIALS    0x00
+#define COMMAND_MAKE_CREDENTIAL     0x01
+#define COMMAND_GET_ASSERTION       0x02
+#define COMMAND_RESET               0x03
+
+#define STATUS_OK                   0x00
+#define STATUS_ERR_COMMAND_UNKNOWN  0x01
+#define STATUS_ERR_CRYPTO_FAILED    0x02
+#define STATUS_ERR_BAD_PARAMETER    0x03
+#define STATUS_ERR_NOT_FOUND        0x04
+#define STATUS_ERR_STORAGE_FULL     0x05
+#define STATUS_ERR_APPROVAL         0x06
+
+#endif /* CONSTANTS_H */

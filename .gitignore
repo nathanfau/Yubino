@@ -1,0 +1,13 @@
+# Fichiers de compilation C
+*.o
+*.hex
+*.elf
+*.map
+
+# Environnement Python
+.env/
+__pycache__/
+*.pyc
+
+# Fichiers systèmes
+.DS_Store
