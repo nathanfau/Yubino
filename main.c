@@ -13,12 +13,6 @@
 #define EEPROM_MAX_SIZE 1024
 #define MAX_ENTRIES ((EEPROM_MAX_SIZE - 1) / ENTRY_SIZE)
 
-uint8_t current_private_key[21]; 
-uint8_t current_public_key[40];
-uint8_t current_credential_id[16];
-
-
-
 uint8_t store_credential_in_eeprom(const uint8_t app_id_hash[20], const uint8_t credential_id[16], const uint8_t private_key[21]) {
 
     // On consulte le nombre de clés actuellement stockées, cette valeur est conservée l'offset 0                                                                            
@@ -84,9 +78,6 @@ void handle_make_credential(void) {
     uint8_t current_public_key[40];
     uint8_t current_credential_id[16];
 
-    uint16_t err_sha1= 1;
-    while ((err_sha1 = UART__getc()) == -1){}
-
     for (int i = 0; i < 20; i++) {
         while ((input = UART__getc()) == -1){}
         
@@ -134,9 +125,6 @@ void handle_get_assertion(void) {
     uint8_t signature[40];
     uint8_t status;
     uint16_t input;
-    
-    uint16_t err_sha1= 1;
-    while ((err_sha1 = UART__getc()) == -1){}
 
     for (int i = 0; i < 20; i++) {
         while ((input = UART__getc()) == -1){}
