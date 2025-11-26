@@ -18,9 +18,6 @@ uint8_t store_credential_in_eeprom(const uint8_t app_id_hash[20], const uint8_t 
     // On consulte le nombre de clés actuellement stockées, cette valeur est conservée l'offset 0                                                                            
     uint8_t nb_entries = eeprom_read_byte((uint8_t*)0);
 
-    if (nb_entries > MAX_ENTRIES)
-        return STATUS_ERR_STORAGE_FULL;
-
     uint16_t index = 0;
 
     // Recherche d'une entrée existante correspondant à app_id_hash
@@ -38,6 +35,9 @@ uint8_t store_credential_in_eeprom(const uint8_t app_id_hash[20], const uint8_t 
         if (match) {
             index = i;
             goto write_entry;
+
+            if (nb_entries >= MAX_ENTRIES)
+                return STATUS_ERR_STORAGE_FULL;
         }
     }
 
