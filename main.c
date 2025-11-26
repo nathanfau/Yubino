@@ -13,75 +13,102 @@
 #define EEPROM_MAX_SIZE 1024
 #define MAX_ENTRIES ((EEPROM_MAX_SIZE - 1) / ENTRY_SIZE)
 
-uint8_t store_credential_in_eeprom(const uint8_t app_id_hash[20], const uint8_t credential_id[16], const uint8_t private_key[21]) {
+typedef struct {
+    uint8_t nb_entries;
+    uint8_t match;
+    uint16_t index;
+} SearchResult;
 
-    // On consulte le nombre de clés actuellement stockées, cette valeur est conservée l'offset 0                                                                            
-    uint8_t nb_entries = eeprom_read_byte((uint8_t*)0);
+SearchResult search__by__app_id_hash (const uint8_t app_id_hash[20]){
+    SearchResult out;
+    // On consulte le nombre de clés actuellement stockées, cette valeur est conservée l'offset 0   
+    out.nb_entries = eeprom_read_byte((uint8_t*)0);
 
-    uint16_t index = 0;
+    // après un reset, l'eeprom est rempli de FF
+    if (out.nb_entries == 0xFF) {
+        out.nb_entries = 0;
+    }
+
+    out.index = 0;
+    out.match = 0;
 
     // Recherche d'une entrée existante correspondant à app_id_hash
-    for (uint8_t i = 0; i < nb_entries; i++) {
+    for (uint8_t i = 0; i < out.nb_entries; i++) {
         uint16_t base = 1 + i * ENTRY_SIZE;
-        uint8_t match = 1;
+        uint8_t stored_hash[20];
+        
+        // On lit app_id_hash pour comparer
+        eeprom_read_block(stored_hash, (const void*)base, 20);
 
-        for (uint8_t j = 0; j < 20; j++) {
-            if (eeprom_read_byte((uint8_t*)(base + j)) != app_id_hash[j]) {
-                match = 0;
-                break;
-            }
-        }
-
-        if (match) {
-            index = i;
-            goto write_entry;
-
-            if (nb_entries >= MAX_ENTRIES)
-                return STATUS_ERR_STORAGE_FULL;
+        // on compare les 2 
+        if (memcmp(stored_hash, app_id_hash, 20) == 0) {
+            out.index = i;
+            out.match = 1;
+            break;
         }
     }
 
-    // Sinon, nouvelle entrée
-    if (nb_entries == MAX_ENTRIES)
-        return STATUS_ERR_STORAGE_FULL;
+    return out;
+}
 
-    index = nb_entries;
+uint8_t store__credential__in__eeprom(const uint8_t app_id_hash[20], const uint8_t credential_id[16], const uint8_t private_key[21]) {
 
-write_entry:;
-    uint16_t base = 1 + index * ENTRY_SIZE;
+    // On appelle notre fonction qui cherche une entree par son app_id_hash
+    SearchResult in = search__by__app_id_hash(app_id_hash);
+    
+    if (!in.match) {
+        if (in.nb_entries >= MAX_ENTRIES) {
+            return STATUS_ERR_STORAGE_FULL;
+        }
+        in.index = in.nb_entries;
+    }
 
-    // 1) SHA1(app_id)
-    for (uint8_t i = 0; i < 20; i++)
-        eeprom_write_byte((uint8_t*)(base + i), app_id_hash[i]);
+    uint16_t base = 1 + in.index * ENTRY_SIZE;
 
-    // 2) credential_id
-    for (uint8_t i = 0; i < 16; i++)
-        eeprom_write_byte((uint8_t*)(base + 20 + i), credential_id[i]);
+    // on écrit SHA1(app_id)
+    eeprom_update_block(app_id_hash, (void*)(base), 20);
 
-    // 3) private_key
-    for (uint8_t i = 0; i < 21; i++)
-        eeprom_write_byte((uint8_t*)(base + 36 + i), private_key[i]);
+    // on écrit credential_id
+    eeprom_update_block(credential_id, (void*)(base + 20), 16);
+
+    // on écrit private_key
+    eeprom_update_block(private_key, (void*)(base + 36), 21);
 
     // Mettre à jour nb_entries uniquement pour un ajout
-    if (index == nb_entries)
-        eeprom_write_byte((uint8_t*)0, nb_entries + 1);
+    if (!in.match){
+        eeprom_update_byte((uint8_t*)0, in.nb_entries + 1);
+    }
 
     return STATUS_OK;
 }
 
+uint8_t storage__search(const uint8_t *app_id_hash, uint8_t *credential_id, uint8_t *private_key) {
 
+    SearchResult in = search__by__app_id_hash(app_id_hash);
 
-void handle_make_credential(void) {
+    uint16_t base = 1 + in.index * ENTRY_SIZE;
+
+    if (in.match){
+        eeprom_read_block(credential_id, (const void*)(base + 20), 16);
+        eeprom_read_block(private_key, (const void*)(base + 36), 21);
+        return STATUS_OK;
+    }
+
+    return STATUS_ERR_NOT_FOUND;
+}
+
+void handle__make__credential(void) {
+    uint8_t app_id_hash[20];
+    uint8_t private_key[21]; 
+    uint8_t public_key[40];
+    uint8_t credential_id[16];
+
     int16_t input;
-    uint8_t current_app_id_hash[20];
-    uint8_t current_private_key[21]; 
-    uint8_t current_public_key[40];
-    uint8_t current_credential_id[16];
 
     for (int i = 0; i < 20; i++) {
         while ((input = UART__getc()) == -1){}
         
-        current_app_id_hash[i] = (uint8_t)input;
+        app_id_hash[i] = (uint8_t)input;
     }
     // ON DOIT VERIFIER LE SHA 1 ICI
     // si erreur , renvoyer : STATUS_ERR_BAD_PARAMETER
@@ -91,45 +118,47 @@ void handle_make_credential(void) {
     //(implémenter une version sans le consentement pour les tests)
 
     // On utilise la bibliothèque importée pour générer un couple clef privée/publique
-    int success = uECC_make_key(current_public_key, current_private_key, uECC_secp160r1());
+    int success_crypto = uECC_make_key(public_key, private_key, uECC_secp160r1());
 
-    if (!success) {
+    if (!success_crypto) {
         UART__putc(STATUS_ERR_CRYPTO_FAILED);
         return;
     }
 
-    // on appelle notre fonction de random pour generer 16 octets : c'est credential_id
-    random__get(current_credential_id, 16);
+    // on appelle notre fonction de random pour generer 16 octets : credential_id
+    random__get(credential_id, 16);
 
-    // IL FAUT SAUVEGARDER DANS L'EEPROM A CE MOMENT LA 
-    // current_app_id_hash || current_credential_id || curren_private_key = 57 octets
-    // VERIFIER SI ON A LA PLACE POUR LA SAUVEGARDE sinon, renvoyer: STATUS_ERR_STORAGE_FULL
-    // Si un entree avec ap_id existe deja: on ecrase
+    // on enregistre le tuple (app_id_hash, credentieal_id, private_key) dans l'eeprom
+    uint8_t success_write = store__credential__in__eeprom(app_id_hash, credential_id, private_key);
 
-    // on revoie notre reponse
-    // STATUS_OK || credential_id || public_key
+    // on renvoie le tout au client
+    if (success_write != STATUS_OK){
+        UART__putc(STATUS_ERR_STORAGE_FULL);
+        return;
+    }
 
     UART__putc(STATUS_OK);
     for (int i = 0; i < 16; i++) {
-        UART__putc(current_credential_id[i]);
+        UART__putc(credential_id[i]);
     }
     for (int i = 0; i < 40; i++) {
-        UART__putc(current_public_key[i]);
+        UART__putc(public_key[i]);
     }
 }
 
-void handle_get_assertion(void) {
-    uint8_t current_client_data_hash[20];
-    uint8_t current_app_id_hash[20];
-    uint8_t current_private_key[21];
+void handle__get__assertion(void) {
+    uint8_t client_data_hash[20];
+    uint8_t app_id_hash[20];
+    uint8_t private_key[21];
+    uint8_t credential_id[16];
     uint8_t signature[40];
-    uint8_t status;
-    uint16_t input;
+
+    int16_t input;
 
     for (int i = 0; i < 20; i++) {
         while ((input = UART__getc()) == -1){}
         
-        current_app_id_hash[i] = (uint8_t)input;
+        app_id_hash[i] = (uint8_t)input;
     }
 
     // MEME SOUCIS QUE DANS LA FONCTION PRECEDENTE: STATUS_ERR_BAD_PARAMETER
@@ -137,26 +166,26 @@ void handle_get_assertion(void) {
     // on lit le clientDataHash
     for (int i = 0; i < 20; i++) {
         while ( (input = UART__getc()) == -1); 
-        current_client_data_hash[i] = (uint8_t)input;
+        client_data_hash[i] = (uint8_t)input;
     }
 
     // MEME SOUCIS QU'AU DESSUS : STATUS_ERR_BAD_PARAMETER
 
-    // ON CHERCHER DANS NOTRE MEMOIRE LES INFOS : credential_id et private_key
-    // ces infos sont associés au app_id_hash
-    // SI ON NE TROUVE PAS D'ENTREE ASSOCIE ON RENVOIE: STATUS_ERR_NOT_FOUND
+    // on cherche une entree avec app_id_hash dans notre eeprom
+    uint8_t success_search = storage__search(app_id_hash, credential_id, private_key);
 
-    // IL FAUT STOCKER DANS UN VARIABLE DE LA FONCTION LA VALEUR DE crediential_id
-
+    // on renvoie le tout au client
+    if (success_search != STATUS_OK){
+        UART__putc(STATUS_ERR_NOT_FOUND);
+        return;
+    }
 
     // CONSENTEMENT sinon STATUS_ERR_APPROVAL
 
-
-
     // SIGNATURE 
-    int crypto_success = uECC_sign(current_private_key, current_client_data_hash, 20, signature, uECC_secp160r1());
+    int succes_crypto = uECC_sign(private_key, client_data_hash, 20, signature, uECC_secp160r1());
 
-    if (!crypto_success) {
+    if (!succes_crypto) {
         UART__putc(STATUS_ERR_CRYPTO_FAILED);
         return;
     }
@@ -164,26 +193,16 @@ void handle_get_assertion(void) {
     // on revoie notre reponse
     // STATUS_OK || credential_id || signature
     UART__putc(STATUS_OK);
-    //for (int i = 0; i < 16; i++) {
-        //UART__putc(current_credential_id[i]);
-    //}
+    for (int i = 0; i < 16; i++) {
+        UART__putc(credential_id[i]);
+    }
     for (int i = 0; i < 40; i++) {
         UART__putc(signature[i]);
     }
 }
 
-
-
-
-
-
-
-
-
 int main(void) {
     UART__init();
-
-    // STORAGE__INIT()
 
     random__init();
     uECC_set_rng(random__get);
@@ -196,11 +215,11 @@ int main(void) {
 
             switch (cmd) {
                 case COMMAND_MAKE_CREDENTIAL:
-                    handle_make_credential();
+                    handle__make__credential();
                     break;
 
                 case COMMAND_GET_ASSERTION:
-                    handle_get_assertion();
+                    handle__get__assertion();
                     break;
                 
                 default:
