@@ -1,6 +1,8 @@
 #include <avr/io.h>
 #include <avr/eeprom.h>
 #include <stdint.h>
+#include <avr/sleep.h>
+#include <avr/interrupt.h>
 
 #include "utils/uart.h"
 #include "utils/ringbuffer.h"
@@ -113,9 +115,14 @@ void handle__make__credential(void) {
     // ON DOIT VERIFIER LE SHA 1 ICI
     // si erreur , renvoyer : STATUS_ERR_BAD_PARAMETER
 
-    // DEMANDER LE CONSENTEMENT ICI
-    // si on ne donne pas son accord en 10sec, renvoyer: STATUS_ERR_APROVAL
-    //(implémenter une version sans le consentement pour les tests)
+    // Placeholder en attendant le bouton :
+    uint8_t user_approved = 1;
+    // ---------------------------
+
+    if (!user_approved) {
+        UART__putc(STATUS_ERR_APPROVAL);
+        return;
+    }
 
     // On utilise la bibliothèque importée pour générer un couple clef privée/publique
     int success_crypto = uECC_make_key(public_key, private_key, uECC_secp160r1());
@@ -180,7 +187,14 @@ void handle__get__assertion(void) {
         return;
     }
 
-    // CONSENTEMENT sinon STATUS_ERR_APPROVAL
+    // Placeholder en attendant le bouton :
+    uint8_t user_approved = 1;
+    // ---------------------------
+
+    if (!user_approved) {
+        UART__putc(STATUS_ERR_APPROVAL);
+        return;
+    }
 
     // SIGNATURE 
     int succes_crypto = uECC_sign(private_key, client_data_hash, 20, signature, uECC_secp160r1());
@@ -200,7 +214,6 @@ void handle__get__assertion(void) {
         UART__putc(signature[i]);
     }
 }
-
 
 void handle__list__credentials() {
     uint8_t nb_entries = eeprom_read_byte((uint8_t*)0);
@@ -234,7 +247,6 @@ void handle__list__credentials() {
     }
 }
 
-
 void handle__reset() {
 
     // Placeholder en attendant le bouton :
@@ -246,16 +258,33 @@ void handle__reset() {
         return;
     }
 
-    // Effacer nb_entries > on le met à ff
-    eeprom_write_byte((uint8_t*)0, 0xff);
+    uint8_t nb_entries = eeprom_read_byte((uint8_t*)0);
+
+    // Si EEPROM vidée (reset), elle contient 0xff
+    if (nb_entries == 0xff) {
+        nb_entries = 0;
+    }
+
+    // Effacer nb_entries 
+    eeprom_update_byte((uint8_t*)0, 0x00);
+
+    uint16_t limit = 1 + nb_entries * ENTRY_SIZE;
 
     // Effacer le reste (1 à 1023) en fixant à 0x00
-    for (uint16_t addr = 0; addr < EEPROM_MAX_SIZE; addr++) {
-        eeprom_write_byte((uint8_t*)addr, 0x00);
+    for (uint16_t addr = 0; addr < limit; addr++) {
+        eeprom_update_byte((uint8_t*)addr, 0x00);
     }
 
     UART__putc(STATUS_OK);
 }
+
+
+
+
+
+
+
+
 
 
 
@@ -265,10 +294,18 @@ int main(void) {
     random__init();
     uECC_set_rng(random__get);
 
+    set_sleep_mode(SLEEP_MODE_IDLE);
+
     while (1) {
+
+        cli();
+        
         int16_t input = UART__getc();
         
         if (input != -1) {
+
+            sei();
+
             uint8_t cmd = (uint8_t)input;
 
             switch (cmd) {
@@ -292,6 +329,13 @@ int main(void) {
                     UART__putc(STATUS_ERR_COMMAND_UNKNOWN);
                     break;
             }
+        } else {
+            sleep_enable(); 
+            sei(); 
+            
+            sleep_cpu(); 
+            
+            sleep_disable(); 
         }
     }
     return 0;
