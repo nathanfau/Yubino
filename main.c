@@ -201,6 +201,64 @@ void handle__get__assertion(void) {
     }
 }
 
+
+void handle__list__credentials() {
+    uint8_t nb_entries = eeprom_read_byte((uint8_t*)0);
+
+    // Si EEPROM vidée (reset), elle contient 0xff
+    if (nb_entries == 0xff) {
+        nb_entries = 0;
+    }
+
+    // On enverra toujours STATUS_OK car la commande ne peut pas échouer
+    UART__putc(STATUS_OK);
+
+    // On envoie d'abord le nombre d'entrée
+    UART__putc(nb_entries);
+
+    // Pour chaque entrée, on envoie son credential_id et son app_id_hash
+    for (uint8_t i = 0; i < nb_entries; i++) {
+        uint16_t base = 1 + i * ENTRY_SIZE;
+
+        // credential_id : offset 20 à 35
+        for (uint8_t j = 0; j < 16; j++) {
+            uint8_t byte = eeprom_read_byte((uint8_t*)(base + 20 + j));
+            UART__putc(byte);
+        }
+
+        // app_id_hash : offset 0 à 19
+        for (uint8_t j = 0; j < 20; j++) {
+            uint8_t byte = eeprom_read_byte((uint8_t*)(base + j));
+            UART__putc(byte);
+        }
+    }
+}
+
+
+void handle__reset() {
+
+    // Placeholder en attendant le bouton :
+    uint8_t user_approved = 1;
+    // ---------------------------
+
+    if (!user_approved) {
+        UART__putc(STATUS_ERR_APPROVAL);
+        return;
+    }
+
+    // Effacer nb_entries > on le met à ff
+    eeprom_write_byte((uint8_t*)0, 0xff);
+
+    // Effacer le reste (1 à 1023) en fixant à 0x00
+    for (uint16_t addr = 0; addr < EEPROM_MAX_SIZE; addr++) {
+        eeprom_write_byte((uint8_t*)addr, 0x00);
+    }
+
+    UART__putc(STATUS_OK);
+}
+
+
+
 int main(void) {
     UART__init();
 
@@ -220,6 +278,14 @@ int main(void) {
 
                 case COMMAND_GET_ASSERTION:
                     handle__get__assertion();
+                    break;
+
+                case COMMAND_LIST_CREDENTIALS:
+                    handle__list__credentials();
+                    break;
+
+                case COMMAND_RESET:
+                    handle__reset();
                     break;
                 
                 default:
