@@ -6,7 +6,6 @@
 #include "consent.h"
 #include "storage.h"
 
-#include "../micro-ecc/uECC.h"
 
 SearchResult search__by__app_id_hash (const uint8_t app_id_hash[20]){
     SearchResult out;
