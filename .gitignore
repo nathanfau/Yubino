@@ -11,3 +11,6 @@ __pycache__/
 
 # Fichiers systèmes
 .DS_Store
+
+# Dossier généré par vscode
+.vscode
