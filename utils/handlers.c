@@ -1,5 +1,6 @@
 #include <avr/eeprom.h>
 #include <stdint.h>
+#include <avr/io.h>
 
 #include "uart.h"
 #include "random.h"
@@ -10,6 +11,32 @@
 #include "../micro-ecc/uECC.h"
 #include "storage.h"
 
+static int16_t timeout__at__reception(void) {
+    
+    // timer 1 en mode normal
+    TCCR1A = 0;
+    
+    // reset du compteur à 0
+    TCNT1 = 0;
+
+    // prescaler à 1024
+    TCCR1B = (1 << CS12) | (1 << CS10);
+
+    // boucle d'attente de 1 sec
+    while (TCNT1 < 15625) {
+        int16_t c = UART__getc();
+        
+        // caractère recu, on reset le timer et return le caractère
+        if (c != -1) {
+            TCCR1B = 0; 
+            return c;
+        }
+    }
+
+    // timeout atteint, on return une erreur
+    TCCR1B = 0;
+    return -1; 
+}
 
 void handle__make__credential(void) {
     uint8_t app_id_hash[20];
@@ -20,16 +47,17 @@ void handle__make__credential(void) {
     int16_t input;
 
     for (int i = 0; i < 20; i++) {
-        while ((input = UART__getc()) == -1){}
-        
+        input = timeout__at__reception();
+
+        // client trop lent ou panne
+        if (input == -1) {
+            UART__putc(STATUS_ERR_BAD_PARAMETER);
+            return;
+        }        
         app_id_hash[i] = (uint8_t)input;
     }
-    // ON DOIT VERIFIER LE SHA 1 ICI
-    // si erreur , renvoyer : STATUS_ERR_BAD_PARAMETER
 
-    // Placeholder en attendant le bouton :
-    uint8_t user_approved = wait_for_user_consent();
-    // ---------------------------
+    uint8_t user_approved = wait__for__user__consent();
 
     if (!user_approved) {
         UART__putc(STATUS_ERR_APPROVAL);
@@ -74,21 +102,29 @@ void handle__get__assertion(void) {
 
     int16_t input;
 
+    // on lit de app_id_hash
     for (int i = 0; i < 20; i++) {
-        while ((input = UART__getc()) == -1){}
-        
+        input = timeout__at__reception();
+
+        // client trop lent ou panne
+        if (input == -1) {
+            UART__putc(STATUS_ERR_BAD_PARAMETER);
+            return;
+        }        
         app_id_hash[i] = (uint8_t)input;
     }
 
-    // MEME SOUCIS QUE DANS LA FONCTION PRECEDENTE: STATUS_ERR_BAD_PARAMETER
-
     // on lit le clientDataHash
     for (int i = 0; i < 20; i++) {
-        while ( (input = UART__getc()) == -1); 
+        input = timeout__at__reception();
+
+        // client trop lent ou panne
+        if (input == -1) {
+            UART__putc(STATUS_ERR_BAD_PARAMETER);
+            return;
+        }        
         client_data_hash[i] = (uint8_t)input;
     }
-
-    // MEME SOUCIS QU'AU DESSUS : STATUS_ERR_BAD_PARAMETER
 
     // on cherche une entree avec app_id_hash dans notre eeprom
     uint8_t success_search = storage__search(app_id_hash, credential_id, private_key);
@@ -99,9 +135,7 @@ void handle__get__assertion(void) {
         return;
     }
 
-    // Placeholder en attendant le bouton :
-    uint8_t user_approved = wait_for_user_consent();
-    // ---------------------------
+    uint8_t user_approved = wait__for__user__consent();
 
     if (!user_approved) {
         UART__putc(STATUS_ERR_APPROVAL);
@@ -161,9 +195,7 @@ void handle__list__credentials() {
 
 void handle__reset() {
 
-    // Placeholder en attendant le bouton :
-    uint8_t user_approved = wait_for_user_consent();
-    // ---------------------------
+    uint8_t user_approved = wait__for__user__consent();
 
     if (!user_approved) {
         UART__putc(STATUS_ERR_APPROVAL);

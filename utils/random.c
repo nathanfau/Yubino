@@ -16,7 +16,7 @@ void random__init(void) {
     // on veut le mode normal (pas d'interruptions ni de compare match etc)
     TCCR0A = 0;
 
-    // Pas de prescaler (tourne a 16MHz), je sais pas si c'est bien mais pourquoi pas
+    // Pas de prescaler, tourne a 16MHz
     TCCR0B = (1 << CS00); 
 }
 
@@ -87,8 +87,3 @@ int random__get(uint8_t *dest, unsigned size) {
     //return 1 si tout a marché
     return 1;
 }
-
-
-
-
-// IL FAUT SUREMENT DESACTIVER CE QUE J'UTILSE PLIS
