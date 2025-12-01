@@ -40,12 +40,17 @@ ISR(WDT_vect){
 // gere le timout de 10s 
 ISR(TIMER1_COMPA_vect) {
     seconds_counter++;
-    if (seconds_counter >= 10) {
+
+    PORTB ^= (1 << PB5);
+    if (seconds_counter >= 20) {
         timeout_flag = 1;
     }
 }
 
 uint8_t wait__for__user__consent(void) {
+
+    DDRB |= (1 << PB5);  // PB5 en sortie (LED)
+    PORTB |= (1 << PB5);
 
     #if BYPASS_USER_CONSENT
         return 1;
@@ -78,11 +83,11 @@ uint8_t wait__for__user__consent(void) {
     // reset le compteur a 0
     TCNT1 = 0;
 
-    // mode CTC + prescaler a 1024
-    TCCR1B = (1 << WGM12) | (1 << CS12) | (1 << CS10);
+    // mode CTC + prescaler a 256
+    TCCR1B = (1 << WGM12) | (1 << CS12);
 
     // seuil
-    OCR1A = 15624;
+    OCR1A = 31249;
 
     //active l'interruption de comparaison (on compare match ...)
     TIMSK1 |= (1 << OCIE1A);

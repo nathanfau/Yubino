@@ -1,7 +1,7 @@
 **Nathan FAUVELLE-AYMAR (MIC) & Jonas DOS SANTOS (MIC)**
 
 ## Ce que fait le programme
-Ce programme permet d'implémenter sur carte Arduino UNO R3 un programme permettant à la carte de jouer un rôle **d'Authenticator** dans le protocole FIDO2. 
+Ce programme permet d'implémenter sur carte Arduino UNO R3 un programme permettant à la carte de jouer un rôle **d'Authenticator** dans un protocole de type FIDO2.
 
 
 ## Comment l'exécuter
@@ -13,6 +13,11 @@ make
 Si on souhaite ignorer les interactions avec l'utilisateur (à savoir appuyer sur le bouton) pour les valider automatiquement, effectuer la commande :
 ```bash
 make bypass
+```
+
+Veuillez penser à **clean** avant de changer le mode d'interactions (consentement/automatique)
+```bash
+make clean
 ```
 
 Pour effectuer les tests, il est recommandé de suivre les instructions données dans le fichier ./yubino-client/README.md fourni avec le sujet du projet.
@@ -48,12 +53,28 @@ soit **57 octets** par entrée, stockés séquentiellement.
 
 
 ## GESTION DE L'ENERGIE
+Le microcontrôleur dort la majeur partie de son temps.
+Nous avons utilisé le mode **SLEEP_MODE_IDLE** qui est le sommeil le plus _léger_.
+Lorsque le microcontrôleur s'endort avec ce mode, l'**UART**, les **timers**, le **watch dog** et l'**ADC** continuent de fonctionner.
 
+Le microcontrôleur s'endort dans 2 cas:
+- S'il ne reçoit rien via l'**UART** et qu'il n'est pas en pleine action
+- S'il demande à l'utilisateur son consentement (sommeil < 10s)
 
+Dans les 2 cas ci-dessus, le microcontrôleur doit se réveiller si:
+- Il reçoit un nouveau message via l'**UART**, on doit donc garder celui-ci _allumé_.
+- L'utilisateur appuie sur le bouton, ce qui est détecté par le **watch dog**, on doit donc le garder _allumé_.
+- L'utilisateur n'a pas donné son consentement en 10s, ce qui est détecté par le **timer1**, on doit donc le garder _allumé_.
 
-## IMPLEMENTATION DU RANDOM
+Le mode **IDLE** est le seul mode de sommeil qui laisse **clk_IO** _allumé_, on ne peut donc utiliser que celui-ci.
 
+## IMPLEMENTATION DE L'ALEA
+La bibliothèque micro-ecc nécessite un source d'aléa, nous avons décidé d'implémenter celle-ci comme suit:
+- **random__init()** initialise l'ADC et le timer0 avant de commencer à générer de l'aléa.
+- **random__get(*dest, size)** génère size octets aléatoire et les enregistre à l'adresse de dest.
 
+Pour générer 1 octet aléatoire, on génère 8 bits aléatoirement.
+Chacun de ces bits est généré en combinant la valeur du bit de poids faible du timer0 (ce bit change très souvent car notre timer tourne très vite) et le bit de poids faible de l'ADC (bruit thermique, ce bit et lui aussi imprévisible).
 
 ## UART ET RINGBUFFER (+ bouton et allumage de LED)
 Les fonctions **uart.h**, **uart.c**, **ringbuffer.h**, **ringbuffer.c** sont tirées du **TP4**.
@@ -69,10 +90,10 @@ L'implémentation du bouton est tirée du **TP5**, et la méthode d'allumage de 
   - `0` : consentement réel (LED clignotante + pression bouton + timeout).
   - `1` : mode bypass, le consentement est automatiquement validé.
 
-- La fonction `wait_for_user_consent()` gère :
+- La fonction `wait__for__user__consent()` gère :
   - le clignotement de la LED,
   - l’attente du bouton,
-  - un timeout d’environ 10 secondes,
+  - un timeout de 10 secondes,
   - ou un retour immédiat si le bypass est activé.
 
 - Cela permet de réaliser des tests automatisés (notamment avec `make bypass`)
