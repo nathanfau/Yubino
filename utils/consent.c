@@ -60,13 +60,13 @@ ISR(TIMER1_COMPA_vect) {
 // fonction mere, qui initialise le timer1 et le WDT
 uint8_t wait__for__user__consent(void) {
 
-    DDRB |= (1 << PB5);  // PB5 en sortie (LED)
-    PORTB |= (1 << PB5);
-
     // si on a activé le mode BYPASS (flag à la compilation), on return 1 (le consent est automatique)
     #if BYPASS_USER_CONSENT
         return 1;
     #endif
+
+    DDRB |= (1 << PB5);  // PB5 en sortie (LED)
+    PORTB |= (1 << PB5);
 
     // PD2 en entree
     PORTD |= (1 << PD2);
@@ -140,6 +140,8 @@ uint8_t wait__for__user__consent(void) {
 
     // reactive les interruptions
     sei();
+
+    PORTB &= ~(1 << PB5);
 
     // return le resultat, c'est à dire: est ce que le bouton a été push dans le temps imparti ?
     if (button_pushed_flag) {
