@@ -26,9 +26,10 @@ Il est à noter que pour effectuer la batterie de tests fournie, et tester fiabl
 
 ## ORGANISATION DU CODE
 Vous trouverez dans ce dossier les éléments suivants :
-- **micro-ecc** la bibliothèque permettant les opérations cryptographiques avec l'algorithme ECDSA.
-- **yubino-client** le dossier fourni avec le sujet permettant de run **yubino** et effectuer l'ensemble des tests.
-- **utils** qui comprend l'ensemble des fichiers .h et .c utiles à l'ATMega328P. Les rôles de chaque fichiers sont en général explicités par leurs noms, et certains sont directement récupérés des TPs qui ont été effectué durant le semestre.
+- **schema/** contenant un fichier au format pdf et une fichier au format png réprésentant le montage nécessaire pour intégrer le bouton. (ces fichiers ont été générés à l'aide de l'outil en ligne "tinkercad")
+- **micro-ecc/** la bibliothèque permettant les opérations cryptographiques avec l'algorithme ECDSA.
+- **yubino-client/** le dossier fourni avec le sujet permettant de run **yubino** et effectuer l'ensemble des tests.
+- **utils/** qui comprend l'ensemble des fichiers .h et .c utiles à l'ATMega328P. Les rôles de chaque fichiers sont en général explicités par leurs noms, et certains sont directement récupérés des TPs qui ont été effectué durant le semestre.
 - **main.c** le fichier contenant le main de notre code.
 - **Makefile** le fichier permettant de flasher le code sur la carte selon les instructions précédentes.
 
