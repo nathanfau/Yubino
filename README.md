@@ -34,6 +34,8 @@ Vous trouverez dans ce dossier les éléments suivants :
 
 ## REMARQUES GENERALES
 
+Un souci rencontré a été la gestion du **baud rate**, le sujet imposait de définir la valeur du **baud rate** à _115 200_, ce qui générait au départ, énormemément d'erreurs de transmission.
+Nous nous sommes donc penché sur la question est sommes allés lire la doc [1], les sections **20.8** , **20.9** et **20.10** se sont révélés très intéressantes et nous ont permis de comprendre qu'il nous fallait utiliser le _Double Speed Mode_, ce qui permet, lorsqu'un CPU tourne à 16Mhz et qu'on configure le baud rate à 115 200 d'avoir au maximum un taux d'erreurs de **2.1%**. 
 
 ## GESTION DE LA MEMOIRE
 - Le microcontrôleur ATmega328P dispose de **2 Ko de SRAM** et **1 Ko d’EEPROM**, soit **1024 octets d'EEPROM**.
@@ -71,7 +73,7 @@ Le mode **IDLE** est le seul mode de sommeil qui laisse **clk_IO** _allumé_, on
 ## IMPLEMENTATION DE L'ALEA
 La bibliothèque micro-ecc nécessite un source d'aléa, nous avons décidé d'implémenter celle-ci comme suit:
 - **random__init()** initialise l'ADC et le timer0 avant de commencer à générer de l'aléa.
-- **random__get(*dest, size)** génère size octets aléatoire et les enregistre à l'adresse de dest.
+- **random__get(_dest_, _size_)** génère _size_ octets aléatoire et les enregistre à l'adresse de _dest_.
 
 Pour générer 1 octet aléatoire, on génère 8 bits aléatoirement.
 Chacun de ces bits est généré en combinant la valeur du bit de poids faible du timer0 (ce bit change très souvent car notre timer tourne très vite) et le bit de poids faible de l'ADC (bruit thermique, ce bit et lui aussi imprévisible).
@@ -79,6 +81,8 @@ Chacun de ces bits est généré en combinant la valeur du bit de poids faible d
 ## UART ET RINGBUFFER (+ bouton et allumage de LED)
 Les fonctions **uart.h**, **uart.c**, **ringbuffer.h**, **ringbuffer.c** sont tirées du **TP4**.
 L'implémentation du bouton est tirée du **TP5**, et la méthode d'allumage de la LED est tirée du **TP3**.
+
+Pour le bouton, nous avons implémenté l'algorithme de debounce proposé dans le **TP5** et utilisé le **Watchdog Timer**.
 
 
 ## GESTION DU CONSENTEMENT (interaction ou non avec l'utilisateur)
@@ -99,3 +103,6 @@ L'implémentation du bouton est tirée du **TP5**, et la méthode d'allumage de 
 - Cela permet de réaliser des tests automatisés (notamment avec `make bypass`)
   sans interaction physique avec la carte.
 
+## Références 
+
+[Lien](https://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf "[1] - Documentation ATmega")
