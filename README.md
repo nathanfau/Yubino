@@ -70,8 +70,10 @@ Dans les 2 cas ci-dessus, le microcontrôleur doit se réveiller si:
 
 Le mode **IDLE** est le seul mode de sommeil qui laisse **clk_IO** _allumé_, on ne peut donc utiliser que celui-ci.
 
+Nous avons pensé à désactiver par moment les periphériques non utilisés grâce au **Power Reduction Register** mais il nous a semblé que modifier les bits de ce registre très souvent n'est pas forcément rentable. La question a se poser est : Allumer/eteindre certains périphériques coûte-t-il plus cher que ce que nous rapporte ces quelques secondes (ou moins) de _power reduction_ ?
+
 ## IMPLEMENTATION DE L'ALEA
-La bibliothèque micro-ecc nécessite un source d'aléa, nous avons décidé d'implémenter celle-ci comme suit:
+La bibliothèque micro-ecc nécessite une source d'aléa, nous avons décidé d'implémenter celle-ci comme suit:
 - **random__init()** initialise l'ADC et le timer0 avant de commencer à générer de l'aléa.
 - **random__get(_dest_, _size_)** génère _size_ octets aléatoire et les enregistre à l'adresse de _dest_.
 
@@ -105,4 +107,4 @@ Pour le bouton, nous avons implémenté l'algorithme de debounce proposé dans l
 
 ## Références 
 
-[Lien](https://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf "[1] - Documentation ATmega")
+[[1] - Documentation ATmega](https://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf)

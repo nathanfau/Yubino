@@ -18,7 +18,11 @@ int main(void) {
     random__init();
     uECC_set_rng(random__get);
 
+    PRR |= ( 1 << PRTIM2);
+
     set_sleep_mode(SLEEP_MODE_IDLE);
+
+
 
     while (1) {
 
