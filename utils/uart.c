@@ -10,6 +10,7 @@
 #define F_CPU 16000000UL
 #endif
 
+// on a discuté de ce point dans le README
 #define BAUD 115200UL
 #define UBRR_VALUE (F_CPU / (8UL * BAUD) - 1UL)
 

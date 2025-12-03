@@ -8,9 +8,11 @@ volatile uint8_t button_state = 1;
 volatile uint8_t debounce_counter = 0;   
 volatile uint8_t button_pushed_flag = 0;
 
-volatile uint8_t seconds_counter = 0;
+volatile uint8_t demi_seconds_counter = 0;
 volatile uint8_t timeout_flag = 0;
 
+
+// algorithme proposé dans le sujet du TP5
 void debounce(void){
     uint8_t current_button_state = (PIND & (1 << PD2));
  
@@ -30,39 +32,50 @@ void debounce(void){
     }
 }
 
+//gestion de l'interruption du watchdog timer
 ISR(WDT_vect){
     debounce();
 
-    wdt_reset(); // Remet à zéro le timer
-    WDTCSR |= (1 << WDIE); // Interruption enable
+    // Remet à zéro le timer
+    wdt_reset();
+
+    // Interruption enable
+    WDTCSR |= (1 << WDIE);
 }
 
-// gere le timout de 10s 
+// gestion de l'interruption du timer1 (toutes les 500ms)
 ISR(TIMER1_COMPA_vect) {
-    seconds_counter++;
+    demi_seconds_counter++;
 
+    // On inverse l'etat de la led
     PORTB ^= (1 << PB5);
-    if (seconds_counter >= 20) {
+
+    // 20 * 500ms = 10s
+    if (demi_seconds_counter >= 20) {
+        //lorsqu'on a atteint 10s, on leve un flag
         timeout_flag = 1;
     }
 }
 
+// fonction mere, qui initialise le timer1 et le WDT
 uint8_t wait__for__user__consent(void) {
 
     DDRB |= (1 << PB5);  // PB5 en sortie (LED)
     PORTB |= (1 << PB5);
 
+    // si on a activé le mode BYPASS (flag à la compilation), on return 1 (le consent est automatique)
     #if BYPASS_USER_CONSENT
         return 1;
     #endif
 
-    PORTD |= (1 << PD2); // PD2 en entree
+    // PD2 en entree
+    PORTD |= (1 << PD2);
 
     button_pushed_flag = 0;
     button_state = 1; 
     debounce_counter = 0;
 
-    seconds_counter = 0;
+    demi_seconds_counter = 0;
     timeout_flag = 0;
     
     // desactive les interrutpions
@@ -128,6 +141,7 @@ uint8_t wait__for__user__consent(void) {
     // reactive les interruptions
     sei();
 
+    // return le resultat, c'est à dire: est ce que le bouton a été push dans le temps imparti ?
     if (button_pushed_flag) {
         return 1;
     } else {

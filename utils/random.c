@@ -3,19 +3,20 @@
 
 // initialise l'ADC et le timer0 avant de commencer à les utiliser pour générer de l'aléa
 void random__init(void) {
-    // A PRECISER //////////////////////////////////////////////////////////////////////////////////////////////////
-    // AV_cc with external capacitor at AREF pin
+    // selection de la tension de référence (Vref) : AVcc (5V)
     ADMUX = (1 << REFS0);
-    
+    // les bits MUX3 || MUX2 || MUX1 || MUX0 sont à 0 donc on écoute le port ADC0
+    // rien n'est branché dessus donc c'est juste du bruit 
+
     // ADEN pour enable l'ADC
-    // ADPS2 et ADPS1 pour set le prescaler à 64
+    // ADPS2 et ADPS1 pour set le prescaler à 64 : frequence de 16Mhz / 64 =  250khz, un frequence plus lente serait + précise mais on veut juste du bruit ici
     ADCSRA = (1 << ADEN) | (1 << ADPS2) | (1 << ADPS1);
 
-    // On init le timer0 (on remet tout les bits à 0)
-    // on veut le mode normal (pas d'interruptions ni de compare match etc)
+    // On init le timer0 (on remet tous les bits à 0)
+    // on veut le mode normal (pas d'interruption ni de compare match etc)
     TCCR0A = 0;
 
-    // Pas de prescaler, tourne a 16MHz (très rapidement)
+    // Pas de prescaler, tourne a 16MHz (très rapidement, pas la même vitesse que l'ADC)
     TCCR0B = (1 << CS00); 
 }
 
@@ -52,7 +53,7 @@ int random__get(uint8_t *dest, unsigned size) {
         // on écrit le résultat à l'adresse pointée
         *dest = current;
 
-        // au prochain tour (boucle while), on écrira dans à l'adresse mémoire suivante
+        // au prochain tour (boucle while), on écrira à l'adresse mémoire suivante
         dest++;
     }
     //return 1 si tout a marché

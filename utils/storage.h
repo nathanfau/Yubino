@@ -1,10 +1,15 @@
 #ifndef STORAGE_H
 #define STORAGE_H
 
+
+// on a discuté de ces valeurs dans le README
 #define ENTRY_SIZE 57
 #define EEPROM_MAX_SIZE 1024
 #define MAX_ENTRIES ((EEPROM_MAX_SIZE - 1) / ENTRY_SIZE)
 
+
+// on définit ici une struct qui est le type renvoyé par la fonction search__by__app_id_hash
+// Ceci nous permet de renvoyer plusieurs valeurs à la fois lors d'un return sans avoir à utiliser de tableau ou de passer les valeurs de retour en parametre (via pointeurs)
 typedef struct {
     uint8_t nb_entries;
     uint8_t match;

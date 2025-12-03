@@ -18,22 +18,22 @@ int main(void) {
     random__init();
     uECC_set_rng(random__get);
 
+    // on désactive le timer2
     PRR |= ( 1 << PRTIM2);
 
+    // on justifie le choix de ce mode de sommeil dans le README
     set_sleep_mode(SLEEP_MODE_IDLE);
 
-
+    sei();
 
     while (1) {
-
-        cli();
         
         int16_t input = UART__getc();
         
+        // si le caractère reçu correspond à quelque chose
         if (input != -1) {
 
-            sei();
-
+            // le caractère recu est le code d'une commande (voir fichier constants.h)
             uint8_t cmd = (uint8_t)input;
 
             switch (cmd) {
@@ -53,17 +53,22 @@ int main(void) {
                     handle__reset();
                     break;
                 
+                // commande non reconnue
                 default:
                     UART__putc(STATUS_ERR_COMMAND_UNKNOWN);
                     break;
             }
         } else {
+            // on autorise le microcontrolleur à s'endormir
             sleep_enable(); 
-            sei(); 
             
+            // on endort le microcontrolleur
             sleep_cpu(); 
             
+            // on desactive le droit à s'endormir de microcontrolleur (sécurité)
             sleep_disable(); 
+
+            // on aurait pu utiliser sleep_mode(...) pour cette section
         }
     }
     return 0;

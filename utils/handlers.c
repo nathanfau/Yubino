@@ -34,16 +34,19 @@ static int16_t timeout__at__reception(void) {
     }
 
     // timeout atteint, on return une erreur
+    // on reset le timer
     TCCR1B = 0;
     return -1; 
 }
 
+// fonction qui répond à "make_credential"
 void handle__make__credential(void) {
     uint8_t app_id_hash[20];
     uint8_t private_key[21]; 
     uint8_t public_key[40];
     uint8_t credential_id[16];
 
+    // message lu par UART_getc, géré par la fonction timeout__at__reception
     int16_t input;
 
     for (int i = 0; i < 20; i++) {
@@ -57,6 +60,7 @@ void handle__make__credential(void) {
         app_id_hash[i] = (uint8_t)input;
     }
 
+    // on cherche le consentement
     uint8_t user_approved = wait__for__user__consent();
 
     if (!user_approved) {
@@ -84,6 +88,7 @@ void handle__make__credential(void) {
         return;
     }
 
+    // message pour cloturer la requete
     UART__putc(STATUS_OK);
     for (int i = 0; i < 16; i++) {
         UART__putc(credential_id[i]);
@@ -93,6 +98,7 @@ void handle__make__credential(void) {
     }
 }
 
+// fonction qui répond à "get_assertion"
 void handle__get__assertion(void) {
     uint8_t client_data_hash[20];
     uint8_t app_id_hash[20];
@@ -135,6 +141,7 @@ void handle__get__assertion(void) {
         return;
     }
 
+    // on chercher le consentement
     uint8_t user_approved = wait__for__user__consent();
 
     if (!user_approved) {
@@ -142,7 +149,7 @@ void handle__get__assertion(void) {
         return;
     }
 
-    // SIGNATURE 
+    // signature par la bibliothèque micro-ecc
     int succes_crypto = uECC_sign(private_key, client_data_hash, 20, signature, uECC_secp160r1());
 
     if (!succes_crypto) {
@@ -161,10 +168,11 @@ void handle__get__assertion(void) {
     }
 }
 
+// fonction qui repond "list_credential"
 void handle__list__credentials() {
     uint8_t nb_entries = eeprom_read_byte((uint8_t*)0);
 
-    // Si EEPROM vidée (reset), elle contient 0xff
+    // Si l'EEPROM à été vidée (réinitialisation de la carte ou nouveau téléversage par exemple), elle contient 0xff
     if (nb_entries == 0xff) {
         nb_entries = 0;
     }
@@ -172,7 +180,7 @@ void handle__list__credentials() {
     // On enverra toujours STATUS_OK car la commande ne peut pas échouer
     UART__putc(STATUS_OK);
 
-    // On envoie d'abord le nombre d'entrée
+    // On envoie d'abord le nombre d'entrées
     UART__putc(nb_entries);
 
     // Pour chaque entrée, on envoie son credential_id et son app_id_hash
@@ -193,8 +201,10 @@ void handle__list__credentials() {
     }
 }
 
+// fonction qui repond à "reset"
 void handle__reset() {
 
+    // on cherche le consentement
     uint8_t user_approved = wait__for__user__consent();
 
     if (!user_approved) {
@@ -204,17 +214,18 @@ void handle__reset() {
 
     uint8_t nb_entries = eeprom_read_byte((uint8_t*)0);
 
-    // Si EEPROM vidée (reset), elle contient 0xff
+    // Si l'EEPROM à été vidée (réinitialisation de la carte ou nouveau téléversage par exemple), elle contient 0xff
     if (nb_entries == 0xff) {
         nb_entries = 0;
     }
 
-    // Effacer nb_entries 
+    // Effacer nb_entries (offset 0)
     eeprom_update_byte((uint8_t*)0, 0x00);
-
+    
+    // variable qui correspond au dernier octet auquel on a touché dans l'eeprom
     uint16_t limit = 1 + nb_entries * ENTRY_SIZE;
 
-    // Effacer le reste (1 à 1023) en fixant à 0x00
+    // On efface (0x00) tous les octets qui ont été utilisés et pas plus
     for (uint16_t addr = 0; addr < limit; addr++) {
         eeprom_update_byte((uint8_t*)addr, 0x00);
     }

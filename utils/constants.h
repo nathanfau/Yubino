@@ -14,4 +14,4 @@
 #define STATUS_ERR_STORAGE_FULL     0x05
 #define STATUS_ERR_APPROVAL         0x06
 
-#endif /* CONSTANTS_H */
+#endif
